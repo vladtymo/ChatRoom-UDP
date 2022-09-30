@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -24,10 +26,12 @@ namespace ClientApp
     public partial class MainWindow : Window
     {
         IPEndPoint serverEndPoint;
-        UdpClient client = new UdpClient();
+        TcpClient client = new TcpClient();
+        NetworkStream ns = null;
+        StreamWriter sw = null;
+        StreamReader sr = null;
 
         ObservableCollection<MessageInfo> messages = new ObservableCollection<MessageInfo>();
-        private bool isListening = false;
 
         public MainWindow()
         {
@@ -43,34 +47,40 @@ namespace ClientApp
 
         private async void Listen()
         {
-            while (isListening)
+            while (true)
             {
-                var result = await client.ReceiveAsync();
-                string message = Encoding.UTF8.GetString(result.Buffer);
-
+                string? message = await sr.ReadLineAsync();
                 messages.Add(new MessageInfo(message));
+            }
+        }
+
+        private void DisconnectBtnClick(object sender, RoutedEventArgs e)
+        {
+            ns.Close();
+            client.Close();
+        }
+        private void ConnectBtnClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                client.Connect(serverEndPoint);
+                ns = client.GetStream();
+                sw = new StreamWriter(ns);
+                sr = new StreamReader(ns);
+                Listen();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
             }
         }
 
         private void SendBtnClick(object sender, RoutedEventArgs e)
         {
-            string text = msgTextBox.Text;
-            SendMessage(text);
-        }
-        private void JoinBtnClick(object sender, RoutedEventArgs e)
-        {
-            SendMessage("$<join>");
-            if (!isListening)
-            {
-                isListening = true;
-                Listen();
-            }
-        }
+            string message = msgTextBox.Text;
 
-        private void SendMessage(string message)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(message);
-            client.Send(data, data.Length, serverEndPoint);
+            sw.WriteLine(message);
+            sw.Flush();
         }
     }
 }
