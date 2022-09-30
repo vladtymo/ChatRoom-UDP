@@ -8,7 +8,7 @@ namespace ServerApp
 {
     public class ChatServer
     {
-        const short port = 4040;
+        const short port = 4041;
         const string JOIN_CMD = "$<join>";
 
         IPEndPoint clientEndPoint = null;
